@@ -1,0 +1,85 @@
+# Data Dictionary - Nonprofit Volunteer Database
+
+## Overview
+This database tracks volunteer activities for a nonprofit organization, supporting monthly reporting requirements for total miles, volunteer areas, hours, and volunteer counts.
+
+## Table: raw_data1 (Source Data Table)
+
+| Column Name | Data Type | Description | Example | Business Rules | Notes |
+|-------------|-----------|-------------|---------|----------------|-------|
+| timestamp | TEXT | Original data entry timestamp from source system | "2/19/2023 18:50:01" | Cannot be modified once imported | Preserves audit trail; distinguishes form vs manual entries |
+| last_name | TEXT | Volunteer's last name | "Smith" | Required for volunteer identification | May contain inconsistent capitalization |
+| first_name | TEXT | Volunteer's first name | "John" | Required for volunteer identification | May contain inconsistent capitalization |
+| volunteer_area | TEXT | Area or type of volunteer work performed | "Inventory: Collection, Sorting" | Must standardize variations | Long descriptions common; inconsistent formatting |
+| date_volunteered | TEXT | Date when volunteer work was performed | "2/18/2023" | Must be valid date, cannot be future | Currently stored as text, needs conversion to DATE |
+| volunteer_time | TEXT | Hours volunteered in decimal format | "3", "2.5" | Must be > 0 and ≤ 12 hours per session | Currently stored as text, needs conversion to DECIMAL |
+| comments | TEXT | Additional notes about volunteer session | "Includes donor pickup and inventory update" | Optional field | May contain sensitive information |
+| total_miles_personal_car | TEXT | Miles driven using personal vehicle | "2", "15.5" | Can be 0, cannot be negative | Currently stored as text, some entries contain invalid strings |
+
+## Planned Normalized Tables
+
+### Table: volunteers
+
+| Column Name | Data Type | Description | Business Rules |
+|-------------|-----------|-------------|----------------|
+| volunteer_id | SERIAL PRIMARY KEY | Unique identifier for each volunteer | Auto-generated |
+| first_name | VARCHAR(100) NOT NULL | Volunteer's first name | Standardized capitalization |
+| last_name | VARCHAR(100) NOT NULL | Volunteer's last name | Standardized capitalization |
+| first_volunteer_date | DATE | Date of volunteer's first recorded session | Derived from earliest session |
+
+### Table: volunteer_areas
+
+| Column Name | Data Type | Description | Business Rules |
+|-------------|-----------|-------------|----------------|
+| area_id | SERIAL PRIMARY KEY | Unique identifier for each volunteer area | Auto-generated |
+| area_name | VARCHAR(255) NOT NULL | Standardized name of volunteer area | No duplicates, consistent format |
+| description | TEXT | Detailed description of volunteer area | Optional |
+
+### Table: volunteer_sessions
+
+| Column Name | Data Type | Description | Business Rules |
+|-------------|-----------|-------------|----------------|
+| session_id | SERIAL PRIMARY KEY | Unique identifier for each session | Auto-generated |
+| volunteer_id | INTEGER REFERENCES volunteers(volunteer_id) | Links to volunteer | Required |
+| area_id | INTEGER REFERENCES volunteer_areas(area_id) | Links to volunteer area | Required |
+| date_volunteered | DATE NOT NULL | Date volunteer work was performed | Cannot be future date |
+| volunteer_time | DECIMAL(5,2) NOT NULL | Hours volunteered | Must be > 0 and ≤ 12 |
+| total_miles_personal_car | DECIMAL(6,2) | Miles driven using personal vehicle | Can be NULL or 0 |
+| comments | TEXT | Session notes | Optional |
+| timestamp | TIMESTAMP NOT NULL | Original data entry time | Preserves data lineage |
+
+## Data Quality Issues Identified
+
+- **Empty rows:** 24 completely empty entries removed during cleaning
+- **Invalid miles data:** String values found in numeric miles column
+- **Inconsistent volunteer areas:** Multiple variations of same area names
+- **Date format variations:** Mixed date formats requiring standardization
+- **Whitespace:** Leading/trailing spaces in text fields
+- **Duplicate volunteers:** Potential same person with different name spellings
+
+## Monthly Reporting Requirements
+
+The database must support aggregation queries for:
+1. **Total miles** by month across all volunteers
+2. **Total volunteer hours** by volunteer area and month
+3. **Unique volunteer count** by month
+4. **Session count** by volunteer area and month
+
+## Data Retention
+
+- **Volunteer session records:** Retain for 5 years for reporting purposes
+- **Personal volunteer information:** Remove upon volunteer request
+- **Aggregated monthly data:** Retain permanently for historical analysis
+
+## Access Control Levels
+
+- **Admin:** Full CRUD access to all tables
+- **Data Entry:** INSERT/UPDATE access to volunteer_sessions
+- **Viewer:** SELECT access for reporting queries only
+- **Public:** No access to individual volunteer data
+
+## Compliance Considerations
+
+- Volunteer personal information treated as confidential
+- Comments may contain sensitive details requiring careful handling
+- Data export for portfolio uses anonymized/fake names only
