@@ -1,1 +1,1 @@
-nonprofit -database project- README.md is in project folder
+nonprofit database project- README.md is in nonprofit-database folder
